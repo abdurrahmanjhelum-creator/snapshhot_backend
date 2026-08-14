@@ -16,23 +16,6 @@ async function addComment(req, res) {
         });
     }
 
-    const post = await PostModel.findById(postId);
-    if (!post) {
-        return res.status(404).json({
-            message: 'Post not found'
-        });
-    }
-
-    if (post.userId.toString() !== userId.toString()) {
-        await NotificationModel.create({
-            recipient: post.userId,
-            sender: userId,
-            type: 'comment',
-            post: postId,
-            read: false
-        });
-    }
-
     /*Comment create karo*/
     const newComment = await commentModel.create({
         content,
@@ -40,14 +23,37 @@ async function addComment(req, res) {
         postId
     });
 
-    // Populate user details before emitting
+    const post = await PostModel.findById(postId).populate('userId', 'username');
     const populatedComment = await commentModel.findById(newComment._id)
         .populate('userId', 'username avatar profilePicture');
 
-    // Emit real-time event
+    const senderName = populatedComment?.userId?.username || 'Someone';
+    const recipientId = post?.userId?._id?.toString();
+
+    if (recipientId && recipientId !== userId.toString()) {
+        await NotificationModel.create({
+            recipient: recipientId,
+            sender: userId,
+            type: 'comment',
+            post: postId,
+            read: false
+        });
+
+        const io = getIO();
+        io.to(`user-${recipientId}`).emit('notification-added', {
+            recipientId,
+            senderId: userId,
+            senderName,
+            type: 'comment',
+            postId
+        });
+    }
+
     const io = getIO();
     io.to(`post-${postId}`).emit('comment-added', {
         postId,
+        recipientId,
+        senderName,
         comment: populatedComment
     });
 

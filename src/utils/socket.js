@@ -11,6 +11,18 @@ const initializeSocket = (server) => {
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
 
+        socket.on('join-user', (userId) => {
+            if (!userId) return;
+            socket.join(`user-${userId}`);
+            console.log(`Socket ${socket.id} joined user-${userId}`);
+        });
+
+        socket.on('leave-user', (userId) => {
+            if (!userId) return;
+            socket.leave(`user-${userId}`);
+            console.log(`Socket ${socket.id} left user-${userId}`);
+        });
+
         socket.on('join-post', (postId) => {
             socket.join(`post-${postId}`);
             console.log(`Socket ${socket.id} joined post-${postId}`);

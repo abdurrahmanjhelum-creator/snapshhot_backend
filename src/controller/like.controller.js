@@ -4,11 +4,9 @@ const NotificationModel = require('../models/notification.model');
 const { getIO } = require('../utils/socket.js');
 
 async function like(req, res) {
-    // Changed req.params.id to req.params.postId to match the route
     const { postId } = req.params;
     const userId = req.userId;
 
-    /* Check if user already liked the post */
     const existingLike = await likeModel.findOne({ userId, postId });
 
     if (existingLike) {
@@ -17,34 +15,42 @@ async function like(req, res) {
         });
     }
 
-    const post = await PostModel.findById(postId);
-    if (!post) {
-        return res.status(404).json({
-            message: 'Post not found'
-        });
-    }
-
-    if (post.userId.toString() !== userId.toString()) {
-        await NotificationModel.create({
-            recipient: post.userId,
-            sender: userId,
-            type: 'like',
-            post: postId,
-            read: false
-        });
-    }
-
-    /* Create like */
     const newLike = await likeModel.create({
         userId,
         postId
     });
 
-    // Emit real-time event
+    const post = await PostModel.findById(postId).populate('userId', 'username');
+    const recipientId = post?.userId?._id?.toString();
+    const senderName = post?.userId && post.userId._id.toString() === userId.toString()
+        ? 'You'
+        : 'Someone';
+
+    if (recipientId && recipientId !== userId.toString()) {
+        await NotificationModel.create({
+            recipient: recipientId,
+            sender: userId,
+            type: 'like',
+            post: postId,
+            read: false
+        });
+
+        const io = getIO();
+        io.to(`user-${recipientId}`).emit('notification-added', {
+            recipientId,
+            senderId: userId,
+            senderName,
+            type: 'like',
+            postId
+        });
+    }
+
     const io = getIO();
     io.to(`post-${postId}`).emit('like-added', {
         postId,
         userId,
+        recipientId,
+        senderName,
         likeId: newLike._id
     });
 
