@@ -1,4 +1,6 @@
 const likeModel = require('../models/like.model');
+const PostModel = require('../models/post.model');
+const NotificationModel = require('../models/notification.model');
 const { getIO } = require('../utils/socket.js');
 
 async function like(req, res) {
@@ -12,6 +14,23 @@ async function like(req, res) {
     if (existingLike) {
         return res.status(400).json({
             message: 'Already liked this post'
+        });
+    }
+
+    const post = await PostModel.findById(postId);
+    if (!post) {
+        return res.status(404).json({
+            message: 'Post not found'
+        });
+    }
+
+    if (post.userId.toString() !== userId.toString()) {
+        await NotificationModel.create({
+            recipient: post.userId,
+            sender: userId,
+            type: 'like',
+            post: postId,
+            read: false
         });
     }
 

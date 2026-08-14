@@ -4,6 +4,7 @@ const postrouter = require('./routes/post.routes');
 const likerouter = require('./routes/like.routes');
 const commentrouter = require('./routes/comment.routes');
 const userrouter = require('./routes/user.routes');
+const notificationRouter = require('./routes/notification.routes');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
@@ -15,10 +16,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORS configuration for both Web and Mobile
+// CORS configuration for both Web and Mobile clients
 app.use(cors({
-    origin: true, // Allow all origins (or specify your frontend URL)
-    credentials: true, // Allow cookies to be sent
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -34,5 +34,6 @@ app.use('/api/posts', postrouter);
 app.use('/api/likes', likerouter);
 app.use('/api/comments', commentrouter);
 app.use('/api/user', userrouter);
+app.use('/api/notifications', notificationRouter);
 
 module.exports = app;

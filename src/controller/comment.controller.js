@@ -1,4 +1,6 @@
 const commentModel = require('../models/comment.model');
+const PostModel = require('../models/post.model');
+const NotificationModel = require('../models/notification.model');
 const { getIO } = require('../utils/socket.js');
 
 /*Add comment - user post par comment likh sakta hai*/
@@ -11,6 +13,23 @@ async function addComment(req, res) {
     if (!content) {
         return res.status(400).json({
             message: 'Comment content is required'
+        });
+    }
+
+    const post = await PostModel.findById(postId);
+    if (!post) {
+        return res.status(404).json({
+            message: 'Post not found'
+        });
+    }
+
+    if (post.userId.toString() !== userId.toString()) {
+        await NotificationModel.create({
+            recipient: post.userId,
+            sender: userId,
+            type: 'comment',
+            post: postId,
+            read: false
         });
     }
 

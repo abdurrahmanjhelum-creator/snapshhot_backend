@@ -1,5 +1,7 @@
 const PostModel = require('../models/post.model');
 const commentModel = require('../models/comment.model');
+const NotificationModel = require('../models/notification.model');
+const UserModel = require('../models/auth.model');
 const uploadImage = require('../services/storage.service');
 const { getIO } = require('../utils/socket');
 
@@ -45,6 +47,24 @@ async function createPost(req, res) {
         // Increment user's post count
         const authModel = require('../models/auth.model');
         await authModel.findByIdAndUpdate(req.userId, { $inc: { postCount: 1 } });
+
+        const currentUser = await UserModel.findById(req.userId).select('followers');
+        if (currentUser && Array.isArray(currentUser.followers) && currentUser.followers.length > 0) {
+            const notifications = currentUser.followers
+                .filter((followerId) => followerId && followerId.toString() !== req.userId.toString())
+                .map((followerId) => ({
+                    recipient: followerId,
+                    sender: req.userId,
+                    type: 'post',
+                    post: post._id,
+                    read: false,
+                    createdAt: new Date()
+                }));
+
+            if (notifications.length > 0) {
+                await NotificationModel.insertMany(notifications);
+            }
+        }
 
         return res.status(201).json({
             success: true,
