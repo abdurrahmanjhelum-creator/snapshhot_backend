@@ -1,13 +1,7 @@
 const { v2: cloudinary } = require("cloudinary");
 
 
-// Cloudinary Configuration
 
-console.log('Cloudinary Config:', {
-    cloud_name: process.env.CLOUD_NAME,
-    api_key: process.env.API_KEY,
-    api_secret: process.env.API_SECRET ? '***' : 'missing'
-});
 
 cloudinary.config({
 
