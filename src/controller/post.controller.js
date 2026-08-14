@@ -1,5 +1,6 @@
 const PostModel = require('../models/post.model');
 const commentModel = require('../models/comment.model');
+const NotificationModel = require('../models/notification.model');
 const uploadImage = require('../services/storage.service');
 const { getIO } = require('../utils/socket');
 
@@ -45,6 +46,33 @@ async function createPost(req, res) {
         // Increment user's post count
         const authModel = require('../models/auth.model');
         await authModel.findByIdAndUpdate(req.userId, { $inc: { postCount: 1 } });
+
+        const author = await authModel.findById(req.userId).select('username followers');
+        const recipientIds = [req.userId.toString(), ...(author?.followers || []).map((id) => id.toString())]
+            .filter((id, index, arr) => arr.indexOf(id) === index);
+
+        const notifications = recipientIds.map((recipientId) => ({
+            recipient: recipientId,
+            sender: req.userId,
+            type: 'post',
+            post: post._id,
+            read: false
+        }));
+
+        if (notifications.length > 0) {
+            await NotificationModel.insertMany(notifications);
+
+            const io = getIO();
+            recipientIds.forEach((recipientId) => {
+                io.to(`user-${recipientId}`).emit('notification-added', {
+                    recipientId,
+                    senderId: req.userId,
+                    senderName: author?.username || 'Someone',
+                    type: 'post',
+                    postId: post._id.toString()
+                });
+            });
+        }
 
         return res.status(201).json({
             success: true,
